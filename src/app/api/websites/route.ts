@@ -1,116 +1,38 @@
 import { NextResponse } from 'next/server'
 
-import { getSupabaseServerClient, requireAdmin } from '@/lib/supabase/server'
+import { query } from '@/lib/server/db'
 import { RESPONSE, responseMessage } from '@/lib/utils'
 
+import type { Website } from '@/types'
 import type { NextRequest } from 'next/server'
 
-/**
- * @description: 查询网站列表
- * @param {Request} request
- */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await getSupabaseServerClient()
-    // 解析 URL 查询参数
-    const searchParams = request.nextUrl.searchParams
-    const pageIndex = Number(searchParams.get('pageIndex') || '0')
-    const pageSize = Number(searchParams.get('pageSize') || '10')
-    const name = searchParams.get('name')
-    const category_id = searchParams.get('category_id')
-
-    // 判断参数
-    if (
-      Number.isNaN(pageIndex)
-      || Number.isNaN(pageSize)
-      || pageIndex < 0
-      || pageSize <= 0
-    ) {
-      return NextResponse.json(responseMessage(null, '参数错误', RESPONSE.ERROR))
-    }
-
-    // 计算分页
-    const start = pageIndex * pageSize
-    const end = start + pageSize - 1
-
-    // 查询 sql
-    let sqlQuery = supabase
-      .from('ds_websites')
-      .select('*,category:ds_categorys(*)', { count: 'exact' })
-      .range(start, end)
-      .order('pinned', {
-        ascending: false,
-      })
-      .order('sort', {
-        ascending: false,
-      })
-      .order('recommend', {
-        ascending: false,
-      })
-      .order('created_at', {
-        ascending: false,
-      })
-
-    // 判断查询参数
-    if (name) {
-      sqlQuery = sqlQuery.like('name', `%${name}%`)
-    }
-    if (category_id) {
-      sqlQuery = sqlQuery.eq('category_id', category_id)
-    }
-
-    // 请求列表
-    const { data, error, count } = await sqlQuery
-
-    // 执行失败
-    if (error) {
-      return NextResponse.json(responseMessage(null, error.message, RESPONSE.ERROR))
-    }
-
-    return NextResponse.json(responseMessage({
-      list: data,
-      total: count,
-      page: pageIndex + 1,
-      pageSize,
-    }))
+    const categoryId = request.nextUrl.searchParams.get('category_id')
+    const result = await query<Website>(
+      `SELECT * FROM ds_websites ${categoryId ? 'WHERE category_id = $1' : ''} ORDER BY sort DESC, created_at DESC`,
+      categoryId ? [categoryId] : [],
+    )
+    return NextResponse.json(responseMessage(result.rows))
   }
   catch (err) {
-    return NextResponse.json(responseMessage(null, (err as Error).message, -1))
+    return NextResponse.json(responseMessage(null, (err as Error).message, RESPONSE.ERROR))
   }
 }
 
-/**
- * @description: 新增网站
- * @param {Request} request
- */
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await getSupabaseServerClient()
-    // 校验管理员（登录 + 邮箱白名单，middleware 的 getClaims 仅解码 JWT，此处 getUser 验签兜底）
-    const user = await requireAdmin()
-    if (!user) {
-      return NextResponse.json(responseMessage(null, '未登录或无权限', RESPONSE.ERROR), { status: 401 })
-    }
-
-    // 解析请求体
-    const body = await request.json() // 如果是 JSON 数据
-
-    // 插入数据
-    const { data, error } = await supabase.from('ds_websites').insert(body).select().single()
-
-    // 如果插入失败
-    if (error) {
-      // 判断是否违反唯一性约束（PostgreSQL 错误代码 23505）
-      if (error.code === '23505') {
-        return NextResponse.json(responseMessage(null, '网站名称已存在！', -1))
-      }
-
-      // 其他错误
-      return NextResponse.json(responseMessage(null, error.message, RESPONSE.ERROR))
-    }
-    return NextResponse.json(responseMessage(data))
+    const body = await request.json() as Partial<Website>
+    if (!body.name?.trim() || !body.url?.trim() || !body.category_id)
+      return NextResponse.json(responseMessage(null, '名称、地址和分类不能为空', RESPONSE.ERROR))
+    const { rows } = await query<Website>(
+      'INSERT INTO ds_websites(name, url, "desc", logo, tags, sort, pinned, recommend, vpn, "commonlyUsed", category_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *',
+      [body.name.trim(), body.url.trim(), body.desc || '', body.logo || null, body.tags || [], Number(body.sort) || 0, !!body.pinned, !!body.recommend, !!body.vpn, !!body.commonlyUsed, body.category_id],
+    )
+    return NextResponse.json(responseMessage(rows[0]))
   }
   catch (err) {
-    return NextResponse.json(responseMessage(null, (err as Error).message, -1))
+    const error = err as { code?: string, message: string }
+    return NextResponse.json(responseMessage(null, error.code === '23505' ? '网站名称已存在！' : error.message, RESPONSE.ERROR))
   }
 }

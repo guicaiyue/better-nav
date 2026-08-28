@@ -40,7 +40,7 @@ export function responseMessage(data: unknown, msg: string = '请求成功', cod
 }
 
 // 生成 Logo 链接
-export const generateLogoUrl = (path: string) => `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/${process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET}/${path}`
+export const generateLogoUrl = (path: string) => path
 
 /**
  * @description: 格式化时间

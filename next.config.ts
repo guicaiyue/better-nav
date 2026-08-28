@@ -1,15 +1,11 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['nav.xirizhi.cn'],
   typescript: {
     ignoreBuildErrors: true,
   },
-  images: {
-    remotePatterns: [
-      new URL('https://athbiwlqrieaoetfapxd.supabase.co/**'),
-    ],
-    unoptimized: true, // 禁用 Vercel 图片优化
-  },
+  images: { unoptimized: true },
 }
 
 export default nextConfig

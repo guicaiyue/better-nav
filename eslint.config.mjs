@@ -5,7 +5,6 @@ export default antfu({
   ignores: [
     '**/.reasonix/**',
     // 移植指南为中文文档，含反引号标题与代码块，eslint 无法解析，不作为源码检查
-    'supabase/登录鉴权移植指南.md',
   ],
   nextjs: true,
   react: true,

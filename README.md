@@ -14,9 +14,6 @@
   <a href="https://www.heroui.com/" target="_blank">
     <img alt="HeroUI" src="https://img.shields.io/badge/HeroUI-v3-black?style=flat" />
   </a>
-  <a href="https://supabase.com/" target="_blank">
-    <img alt="Supabase" src="https://img.shields.io/badge/Supabase-black?style=flat&logo=supabase" />
-  </a>
   <a href="./LICENSE" target="_blank">
     <img alt="MIT License" src="https://img.shields.io/badge/license-MIT-blue?style=flat" />
   </a>
@@ -24,9 +21,9 @@
 
 ## 🌱 简介
 
-`Better Nav` 是一个基于 Next.js 与 Supabase 的个人导航站。
+`Better Nav` 是一个基于 Next.js 与 PostgreSQL 的个人导航站。
 
-它专注做一件小事：把常用网址放在一起，打开就能用。支持亮暗主题、响应式布局、基础 SEO，以及登录后的网站分类与管理。
+它专注做一件小事：把常用网址放在一起，打开就能用。支持亮暗主题、响应式布局、基础 SEO，以及网站分类与管理。
 
 ## 🌿 截图
 
@@ -43,8 +40,8 @@
 - Next.js 16 + React 19
 - HeroUI v3
 - Tailwind CSS v4
-- Supabase
-- Vercel
+- PostgreSQL
+- 本地静态文件上传
 
 ## 🪴 本地开发
 
@@ -71,10 +68,6 @@ pnpm dev
 项目主要使用这些环境变量：
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET=logos
-
 NEXT_PUBLIC_APP_NAME=Better Nav
 NEXT_PUBLIC_APP_TITLE=一个把常用网址收拾得干干净净的小站
 NEXT_PUBLIC_APP_DESC=把常用网址放在一起，打开就能用。
@@ -86,16 +79,11 @@ NEXT_PUBLIC_AUTHOR_ROLE=
 
 完整示例见 [`.env.example`](./.env.example)。
 
-## 🍀 Supabase 配置
+## 🍀 本地 PostgreSQL 配置
 
-开始之前，你需要在 Supabase 中准备好以下内容：
+开发环境使用 NAS 本机 PostgreSQL 数据库 `nav`，应用通过 Unix socket 连接。首次部署时创建 `ds_categorys` 和 `ds_websites` 数据表；网站 Logo 保存于 `public/uploads/logos`。
 
-1. 创建项目，并填写 `NEXT_PUBLIC_SUPABASE_URL` 与 `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-2. 创建存储桶：`logos`
-3. 配置认证方式与访问策略
-4. 初始化项目依赖的数据结构：`ds_categorys`、`ds_websites`、`increment_visit_count`，以及对应的插入 / 更新触发器
-
-如果你准备把它作为自己的导航站二次使用，最省事的方式是按当前前端字段结构直接在 Supabase 中建表，再根据自己的登录方式补齐鉴权策略。
+管理页面当前未启用登录验证，可通过右上角设置按钮进入 `/admin`。
 
 ## 🌲 部署
 

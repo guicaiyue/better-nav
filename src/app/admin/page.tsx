@@ -1,26 +1,10 @@
-/*
- * @Author: 白雾茫茫丶<baiwumm.com>
- * @Date: 2026-01-22 16:01:46
- * @LastEditors: 白雾茫茫丶<baiwumm.com>
- * @LastEditTime: 2026-08-04 09:38:51
- * @Description: 管理后台
- */
 import { Folder, Globe } from '@gravity-ui/icons'
 import { Tabs } from '@heroui/react'
-import { redirect } from 'next/navigation'
-
-import { requireAdmin } from '@/lib/supabase/server'
 
 import Categorys from './components/categorys'
 import Websites from './components/websites'
 
-async function Admin() {
-  // 服务端校验管理员（登录 + 邮箱白名单），未通过跳转登录页
-  const admin = await requireAdmin()
-  if (!admin) {
-    redirect('/login')
-  }
-
+function Admin() {
   return (
     <Tabs>
       <Tabs.ListContainer>
@@ -37,12 +21,8 @@ async function Admin() {
           </Tabs.Tab>
         </Tabs.List>
       </Tabs.ListContainer>
-      <Tabs.Panel id="categorys">
-        <Categorys />
-      </Tabs.Panel>
-      <Tabs.Panel id="websites">
-        <Websites />
-      </Tabs.Panel>
+      <Tabs.Panel id="categorys"><Categorys /></Tabs.Panel>
+      <Tabs.Panel id="websites"><Websites /></Tabs.Panel>
     </Tabs>
   )
 }

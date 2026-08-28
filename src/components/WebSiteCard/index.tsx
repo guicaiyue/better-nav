@@ -12,7 +12,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { memo } from 'react'
 
-import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { generateLogoUrl } from '@/lib/utils'
 
 import type { Website } from '@/types'
@@ -30,9 +29,7 @@ const WebsiteCard: FC<WebsiteCardProps> = memo(({ data, priority = false }) => {
   const handleClick = async () => {
     // 计数失败不影响跳转，且避免产生未处理的 Promise rejection
     try {
-      await getSupabaseBrowserClient().rpc('increment_visit_count', {
-        row_id: id,
-      })
+      await fetch(`/api/websites/${id}/visit`, { method: 'POST', keepalive: true })
     }
     catch {
       // 忽略计数失败

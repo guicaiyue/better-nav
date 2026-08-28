@@ -23,7 +23,7 @@ const ErrorContent: FC<ErrorContentProps> = ({ refresh }) => {
           <Alert.Description>
             <ul className="mt-2 list-inside list-disc space-y-1 text-[13px]">
               <li>当前无法获取站点数据</li>
-              <li>请检查 SUPABASE 配置是否正确</li>
+              <li>请检查 PostgreSQL 服务和应用日志</li>
               <li>可能由于网络异常或服务暂时不可用</li>
               <li>请稍后重试</li>
             </ul>

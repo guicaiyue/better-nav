@@ -1,79 +1,36 @@
+import { Buffer } from 'node:buffer'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+
 import { NextResponse } from 'next/server'
 
-import { getSupabaseServerClient, requireAdmin } from '@/lib/supabase/server'
+import { query } from '@/lib/server/db'
 import { RESPONSE, responseMessage } from '@/lib/utils'
 
 import type { NextRequest } from 'next/server'
 
-/**
- * @description: 上传网站 Logo
- * @param {Request} request
- */
+const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'logos')
+const allowedTypes = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'])
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = await getSupabaseServerClient()
-    // 获取动态参数
     const { id } = await params
-    // 解析请求体
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-
-    if (!file) {
-      return NextResponse.json(
-        responseMessage(null, '缺少 file 参数', -1),
-      )
+    const file = (await request.formData()).get('file')
+    if (!(file instanceof File))
+      return NextResponse.json(responseMessage(null, '缺少 file 参数', RESPONSE.ERROR))
+    if (!allowedTypes.has(file.type) || file.size > 2 * 1024 * 1024)
+      return NextResponse.json(responseMessage(null, '仅支持 2MB 以内的 PNG、JPEG、WebP、GIF 或 SVG 图片', RESPONSE.ERROR))
+    const ext = file.type === 'image/svg+xml' ? 'svg' : file.type.split('/')[1]
+    const name = `${id}-${crypto.randomUUID()}.${ext}`
+    await mkdir(uploadDir, { recursive: true })
+    await writeFile(path.join(uploadDir, name), Buffer.from(await file.arrayBuffer()))
+    const logo = `/uploads/logos/${name}`
+    const { rows } = await query('UPDATE ds_websites SET logo=$1 WHERE id=$2 RETURNING *', [logo, id])
+    if (!rows[0]) {
+      await rm(path.join(uploadDir, name), { force: true })
+      return NextResponse.json(responseMessage(null, '网站不存在', RESPONSE.ERROR))
     }
-
-    // 校验管理员（登录 + 邮箱白名单，middleware 的 getClaims 仅解码 JWT，此处 getUser 验签兜底）
-    const user = await requireAdmin()
-
-    if (!user) {
-      return NextResponse.json(
-        responseMessage(null, '未登录或无权限', RESPONSE.ERROR),
-        { status: 401 },
-      )
-    }
-
-    // 文件路径
-    const bucket = process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET!
-    const ext = file.name.split('.').pop()
-    const logoPath = `${user.id}/${id}/${crypto.randomUUID()}.${ext}`
-
-    // 上传 logo
-    const { error: uploadError } = await supabase.storage.from(bucket).upload(logoPath, file)
-    if (uploadError) {
-      // ❗兜底：logo 失败，站点已创建，但不影响使用
-      return NextResponse.json(
-        responseMessage(
-          { id },
-          `站点创建成功，但 Logo 上传失败: ${uploadError}`,
-          -1,
-        ),
-      )
-    }
-
-    // 4️⃣ 回写 logo_path
-    const { data, error: updateError } = await supabase
-      .from('ds_websites')
-      .update({ logo: logoPath })
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (updateError) {
-      // ❗兜底：回滚 Storage
-      await supabase.storage
-        .from(bucket)
-        .remove([logoPath])
-
-      return NextResponse.json(
-        responseMessage(null, updateError.message, -1),
-      )
-    }
-
-    return NextResponse.json(responseMessage(data))
+    return NextResponse.json(responseMessage(rows[0]))
   }
-  catch (err) {
-    return NextResponse.json(responseMessage(null, (err as Error).message, -1))
-  }
+  catch (err) { return NextResponse.json(responseMessage(null, (err as Error).message, RESPONSE.ERROR)) }
 }
