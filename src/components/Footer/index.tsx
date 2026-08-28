@@ -23,19 +23,22 @@ interface Social {
   label: string
 }
 
-// 备案信息
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Better Nav'
+const AUTHOR_NAME = process.env.NEXT_PUBLIC_AUTHOR_NAME || 'Better Nav'
+
+// 未配置备案信息时不渲染空链接。
 const IcpLinks: Social[] = [
-  {
+  process.env.NEXT_PUBLIC_ICP && {
     image: '/icp.png',
     url: 'https://beian.miit.gov.cn/#/Integrated/index',
-    label: process.env.NEXT_PUBLIC_ICP!,
+    label: process.env.NEXT_PUBLIC_ICP,
   },
-  {
+  process.env.NEXT_PUBLIC_GUAN_ICP && {
     image: '/gongan.png',
     url: 'https://beian.mps.gov.cn/#/query/webSearch',
-    label: process.env.NEXT_PUBLIC_GUAN_ICP!,
+    label: process.env.NEXT_PUBLIC_GUAN_ICP,
   },
-]
+].filter(Boolean) as Social[]
 
 const Footer: FC = () => {
   return (
@@ -51,7 +54,7 @@ const Footer: FC = () => {
             duration={1.5}
             repeatDelay={1}
             shimmerColor="var(--background)"
-            text={process.env.NEXT_PUBLIC_APP_NAME!}
+            text={APP_NAME}
             className="text-sm font-black"
           />
         </div>
@@ -75,7 +78,7 @@ const Footer: FC = () => {
         {' '}
         {' '}
         <a href={pkg.author.url} rel="noopener noreferrer" target="_blank" className="hover:text-accent transition-colors">
-          {process.env.NEXT_PUBLIC_AUTHOR_NAME}
+          {AUTHOR_NAME}
         </a>
         . All rights reserved.
       </Description>

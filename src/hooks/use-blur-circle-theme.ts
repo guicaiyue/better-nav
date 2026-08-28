@@ -155,7 +155,18 @@ export function useBlurCircleTheme(props: UseBlurCircleThemeProps = {}) {
       })
     })
 
-    await transition.ready
+    const ready = await Promise.race([
+      transition.ready.then(() => true).catch(() => false),
+      new Promise<false>(resolve => setTimeout(resolve, duration + 100, false)),
+    ])
+    if (!ready) {
+      // Some browsers abort or stall a transition before its callback commits.
+      // Fall back to a regular theme change instead of leaving the control disabled.
+      styleElement.remove()
+      onDarkModeChange?.(!isDarkMode)
+      setIsAnimating(false)
+      return
+    }
 
     // 平滑清理样式 - 修复闪烁的核心
     setTimeout(() => {

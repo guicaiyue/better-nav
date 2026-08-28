@@ -14,13 +14,13 @@ import Provider from './Provider'
 
 import type { Metadata } from 'next'
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME
-const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE
-const APP_DESC = process.env.NEXT_PUBLIC_APP_DESC
-const APP_KEYWORDS = process.env.NEXT_PUBLIC_APP_KEYWORDS
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nav.baiwumm.com'
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Better Nav'
+const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || '个人导航'
+const APP_DESC = process.env.NEXT_PUBLIC_APP_DESC || '把常用网址放在一起，打开就能用。'
+const APP_KEYWORDS = process.env.NEXT_PUBLIC_APP_KEYWORDS || '导航,常用网站,网站入口,工具入口'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nav.xirizhi.cn'
 const OG_IMAGE_URL = `${APP_URL}/opengraph-image`
-const AUTHOR_NAME = process.env.NEXT_PUBLIC_AUTHOR_NAME
+const AUTHOR_NAME = process.env.NEXT_PUBLIC_AUTHOR_NAME || 'Better Nav'
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),

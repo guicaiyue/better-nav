@@ -34,6 +34,8 @@ const socials: Social[] = [
   },
 ]
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Better Nav'
+
 const Header: FC = () => {
   return (
     <header className="shrink-0 sticky top-0 p-4 z-20 backdrop-blur-sm container mx-auto flex justify-between items-center">
@@ -49,7 +51,7 @@ const Header: FC = () => {
             duration={1.5}
             repeatDelay={1}
             shimmerColor="var(--background)"
-            text={process.env.NEXT_PUBLIC_APP_NAME!}
+            text={APP_NAME}
             className="text-xl font-black"
           />
         </div>
