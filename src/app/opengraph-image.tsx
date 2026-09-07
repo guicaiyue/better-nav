@@ -13,7 +13,7 @@ export const size = {
 export const contentType = 'image/png'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://nav.baiwumm.com'
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Better Nav'
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Useful Nav'
 const APP_TITLE = process.env.NEXT_PUBLIC_APP_TITLE || '一个把常用网址收拾得干干净净的小站'
 const APP_HOST = APP_URL.replace(/^https?:\/\//, '').replace(/\/$/, '')
 const AUTHOR_NAME = process.env.NEXT_PUBLIC_AUTHOR_NAME || '白雾茫茫丶'

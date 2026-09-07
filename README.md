@@ -1,6 +1,6 @@
 <div align="center">
-  <img alt="Better Nav logo" src="./public/logo.svg" width="80" />
-  <h1>Better Nav</h1>
+  <img alt="Useful Nav logo" src="./public/logo.svg" width="80" />
+  <h1>Useful Nav</h1>
   <p>一个把常用网址收拾得干干净净的小站。</p>
 </div>
 
@@ -21,7 +21,7 @@
 
 ## 🌱 简介
 
-`Better Nav` 是一个基于 Next.js 与 PostgreSQL 的个人导航站。
+`Useful Nav` 是一个基于 Next.js 与 PostgreSQL 的个人导航站。
 
 它专注做一件小事：把常用网址放在一起，打开就能用。支持亮暗主题、响应式布局、基础 SEO，以及网站分类与管理。
 
@@ -68,7 +68,7 @@ pnpm dev
 项目主要使用这些环境变量：
 
 ```bash
-NEXT_PUBLIC_APP_NAME=Better Nav
+NEXT_PUBLIC_APP_NAME=Useful Nav
 NEXT_PUBLIC_APP_TITLE=一个把常用网址收拾得干干净净的小站
 NEXT_PUBLIC_APP_DESC=把常用网址放在一起，打开就能用。
 NEXT_PUBLIC_APP_URL=http://localhost:3000

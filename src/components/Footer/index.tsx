@@ -23,8 +23,8 @@ interface Social {
   label: string
 }
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Better Nav'
-const AUTHOR_NAME = process.env.NEXT_PUBLIC_AUTHOR_NAME || 'Better Nav'
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Useful Nav'
+const AUTHOR_NAME = process.env.NEXT_PUBLIC_AUTHOR_NAME || 'Useful Nav'
 
 // 未配置备案信息时不渲染空链接。
 const IcpLinks: Social[] = [
