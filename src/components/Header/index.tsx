@@ -33,7 +33,7 @@ const socials: Social[] = [
   },
 ]
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Better Nav'
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'Useful Nav'
 
 const Header: FC = () => {
   return (
