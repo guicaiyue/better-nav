@@ -14,7 +14,7 @@ interface AlertContentProps {
   status: AlertProps['status']
   title: ReactNode
   description: ReactNode
-  actionText: ReactNode
+  actionText?: ReactNode
   buttonVariant?: ButtonVariants['variant']
   buttonAction?: () => void
   className?: string
@@ -37,13 +37,21 @@ const AlertContent: FC<AlertContentProps> = ({
         <Alert.Description className="text-xs">
           {description}
         </Alert.Description>
-        <Button size="sm" variant={buttonVariant} onPress={buttonAction} className="mt-2 sm:hidden">
-          {actionText}
-        </Button>
+        {actionText
+          ? (
+              <Button size="sm" variant={buttonVariant} onPress={buttonAction} className="mt-2 sm:hidden">
+                {actionText}
+              </Button>
+            )
+          : null}
       </Alert.Content>
-      <Button size="sm" variant={buttonVariant} onPress={buttonAction} className="hidden sm:block">
-        {actionText}
-      </Button>
+      {actionText
+        ? (
+            <Button size="sm" variant={buttonVariant} onPress={buttonAction} className="hidden sm:block">
+              {actionText}
+            </Button>
+          )
+        : null}
     </Alert>
   )
 }

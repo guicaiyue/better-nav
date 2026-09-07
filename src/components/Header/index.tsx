@@ -6,16 +6,15 @@
  * @Description: 顶部导航
  */
 'use client'
-import { HouseFill, LogoGithub } from '@gravity-ui/icons'
+import { Gear, HouseFill, LogoGithub } from '@gravity-ui/icons'
 import { Button, Tooltip } from '@heroui/react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { memo } from 'react'
 
+import HeaderSearch from '@/components/HeaderSearch'
 import { ShimmeringText } from '@/components/ShimmeringText'
 import ThemeSwitcher from '@/components/ThemeSwitcher'
-import TimeAndLunar from '@/components/TimeAndLunar'
-import UserAvatar from '@/components/UserAvatar'
 import pkg from '#/package.json'
 
 import type { FC, ReactNode } from 'react'
@@ -56,9 +55,22 @@ const Header: FC = () => {
           />
         </div>
       </Link>
-      <TimeAndLunar />
+      <HeaderSearch />
       {/* 右侧区域 */}
       <div className="flex items-center gap-2 justify-self-end">
+        <Tooltip delay={0}>
+          <Tooltip.Trigger>
+            <Link aria-label="站点管理" href="/admin">
+              <Button size="sm" variant="ghost" isIconOnly>
+                <Gear />
+              </Button>
+            </Link>
+          </Tooltip.Trigger>
+          <Tooltip.Content offset={8} placement="bottom" showArrow>
+            <Tooltip.Arrow />
+            站点管理
+          </Tooltip.Content>
+        </Tooltip>
         <ThemeSwitcher />
         {socials.map(({ name, url, icon }) => (
           <Tooltip key={name} delay={0}>
@@ -88,8 +100,6 @@ const Header: FC = () => {
             个人主页
           </Tooltip.Content>
         </Tooltip>
-        {/* 登录用户信息 */}
-        <UserAvatar />
       </div>
     </header>
   )

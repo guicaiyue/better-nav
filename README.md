@@ -47,7 +47,7 @@
 
 ### 🌱 环境要求
 
-- Node.js >= 18.17
+- Node.js >= 24
 - pnpm
 
 ### 🌵 启动项目
@@ -81,18 +81,19 @@ NEXT_PUBLIC_AUTHOR_ROLE=
 
 ## 🍀 本地 PostgreSQL 配置
 
-开发环境使用 NAS 本机 PostgreSQL 数据库 `nav`，应用通过 Unix socket 连接。首次部署时创建 `ds_categorys` 和 `ds_websites` 数据表；网站 Logo 保存于 `public/uploads/logos`。
-
-管理页面当前未启用登录验证，可通过右上角设置按钮进入 `/admin`。
+开发环境使用 NAS 本机 PostgreSQL 数据库 `nav`，应用通过 Unix socket 连接。首次部署时创建 `ds_categorys` 和 `ds_websites` 数据表。
 
 ## 🌲 部署
 
-推荐直接部署到 Vercel：
+生产使用 Docker standalone 镜像 `xirizhi/better-nav:latest`。
 
-1. Fork 本项目
-2. 在 Vercel 中导入仓库
-3. 配置环境变量
-4. 点击 Deploy
+- `main` 推送 → GitHub Actions 测试/构建 → Docker Hub 推送 `latest` 和完整提交 SHA → n8n `Watchtower：按镜像检查更新` → 定向更新容器。
+- Actions secrets：`DOCKERHUB_USERNAME`、`DOCKERHUB_TOKEN`、`N8N_WATCHTOWER_WEBHOOK_URL`。Webhook JSON 仅传不带 tag 的镜像仓库名。
+- 首发在仓库目录执行 `docker compose pull`，确认镜像 revision 与目标提交一致后，停止旧 `nav.service`，再 `docker compose up -d`。容器复用 `39125` 端口、宿主 PostgreSQL socket 和 `public/uploads`，不迁移或初始化数据。
+- 容器保留 root 身份，以兼容既有 root-owned 0700 上传目录；不扩大宿主目录权限。
+- 验收必须核对 Actions 两个 job、n8n 最新执行、容器健康、OCI revision，以及公网首页/管理页/已有数据；HTTP 202 仅表示接收，不等于已上线。
+- 回滚：保存日志，`docker compose down`（不加 `-v`），`sudo systemctl enable --now nav.service`。旧 unit 保留，禁止删除数据库或上传目录。
+- `NEXT_PUBLIC_*` 是构建期变量；生产公开 URL 在 CI build args 中设置。密钥禁止放入 build args 或镜像。
 
 ## 🌸 许可证
 

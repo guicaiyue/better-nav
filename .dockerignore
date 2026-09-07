@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.github
+.env
+.env.*
+*.pem
+*.key
+*.log
+coverage
+public/uploads
+.heroui-docs
+supabase/rls.sql
+*.tsbuildinfo

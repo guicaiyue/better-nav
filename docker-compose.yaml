@@ -1,0 +1,23 @@
+name: better-nav
+services:
+  better-nav:
+    image: xirizhi/better-nav:latest
+    container_name: better-nav
+    restart: unless-stopped
+    init: true
+    # Preserve the existing root-owned (0700) uploads without chmod/chown.
+    user: "0:0"
+    ports:
+      - "${NAV_HTTP_PORT:-39125}:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      NAV_DATABASE_HOST: /var/run/postgresql
+      NAV_DATABASE_NAME: nav
+      NAV_DATABASE_USER: postgres
+    volumes:
+      - /var/run/postgresql:/var/run/postgresql:ro
+      - ./public/uploads:/app/public/uploads
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"

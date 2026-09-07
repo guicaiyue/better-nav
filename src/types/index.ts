@@ -1,14 +1,7 @@
-import type { PaginationState } from '@tanstack/react-table'
-
 /** @description: 网站分类 */
 export type Category = Columns & {
   name: string // 分类名称
   websites: Website[] // 网站列表
-}
-
-/** @description: 网站分类表单 */
-export type CategorySaveParams = Pick<Category, 'name' | 'sort'> & {
-  id?: string
 }
 
 /** @description: 公共列 */
@@ -29,14 +22,6 @@ export interface IResponse<T = unknown> {
   timestamp: number // 时间戳
 }
 
-/** @description: 分页响应体 */
-export type PaginatingResponse<T = unknown> = {
-  total: number // 总条数
-  list: T[]
-  page: number // 页码
-  pageSize: number // 每页条数
-} & PaginationState
-
 /** @description: 网站列表 */
 export type Website = Columns & {
   name: string // 分类名称
@@ -44,16 +29,14 @@ export type Website = Columns & {
   logo: string | null // logo
   url: string // 链接
   tags: string[] // 站点标签
+  metadata: Record<string, unknown> // n8n 分类、内容分析与来源元数据
   pinned: boolean // 是否置顶
   recommend: boolean // 是否推荐
   vpn: boolean // 是否需要 vpn
   visitCount: number // 访问次数
   commonlyUsed: boolean // 是否常用
+  archived_at: string | null // 归档时间，非空表示已下线
   category_id: string // 分类 id
-  category: Category
-}
-
-/** @description: 网站列表表单 */
-export type WebsiteSaveParams = Omit<Website, keyof Columns | 'visitCount' | 'category'> & Pick<Website, 'sort'> & {
-  id?: string
+  category?: Category
+  category_name?: string
 }

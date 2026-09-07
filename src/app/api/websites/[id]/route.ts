@@ -6,7 +6,7 @@ import { RESPONSE, responseMessage } from '@/lib/utils'
 import type { Website } from '@/types'
 import type { NextRequest } from 'next/server'
 
-const fields = ['category_id', 'name', 'url', 'desc', 'logo', 'tags', 'sort', 'pinned', 'recommend', 'vpn', 'commonlyUsed'] as const
+const fields = ['category_id', 'name', 'url', 'desc', 'logo', 'tags', 'metadata', 'sort', 'pinned', 'recommend', 'vpn', 'commonlyUsed', 'archived_at'] as const
 
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
