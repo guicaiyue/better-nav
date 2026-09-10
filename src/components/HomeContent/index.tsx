@@ -41,7 +41,8 @@ export default function HomeContent({ data }: HomeContentProps) {
   const { query, setQuery, isOpen, closeSearch } = useWebsiteSearch()
   const inputRef = useRef<HTMLInputElement>(null)
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const categories = data
+  const categories = data.filter(category => category.websites.some(website => !website.archived_at))
+    .map(category => ({ ...category, websites: category.websites.filter(website => !website.archived_at) }))
   const results = useMemo(() => {
     if (!normalizedQuery)
       return []
@@ -52,7 +53,7 @@ export default function HomeContent({ data }: HomeContentProps) {
         return { website, score }
       }))
       .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score || b.website.visitCount - a.website.visitCount || a.website.name.localeCompare(b.website.name, 'zh-CN'))
+      .sort((a, b) => b.score - a.score || a.website.name.localeCompare(b.website.name, 'zh-CN'))
       .slice(0, MAX_RESULTS)
       .map(item => item.website)
   }, [categories, normalizedQuery])
@@ -81,13 +82,13 @@ export default function HomeContent({ data }: HomeContentProps) {
   return (
     <div className="flex flex-1 gap-4 min-h-0">
       <CategoryIndicator categories={categories} />
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 flex-1 space-y-6">
         {categories.map(({ id, name, websites }, sectionIdx) => (
           <BlurFade key={id} id={`cat-${id}`} inView className="flex flex-col gap-2 scroll-mt-24">
             <Typography type="h1" className="text-lg font-black tracking-normal">{name}</Typography>
             {websites?.length
               ? (
-                  <motion.div variants={cardGridVariants} className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(20rem,1fr))]">
+                  <motion.div variants={cardGridVariants} className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
                     {websites.map((item, idx) => (
                       <motion.div key={item.id} transition={cardTransition} variants={cardVariants} className="h-full">
                         <WebsiteCard data={item} priority={sectionIdx === 0 && idx < FIRST_SCREEN_CARD_COUNT} />
@@ -177,9 +178,9 @@ export default function HomeContent({ data }: HomeContentProps) {
 
 function scoreWebsite(website: Website, categoryName: string, query: string) {
   const name = website.name.toLocaleLowerCase()
-  const url = website.url.toLocaleLowerCase()
+  const url = [website.official_url, website.github_url, ...Object.values(website.related_links || {})].filter(Boolean).join(' ').toLocaleLowerCase()
   const tags = website.tags.join(' ').toLocaleLowerCase()
-  const description = (website.desc ?? '').toLocaleLowerCase()
+  const description = [website.description, website.self_description, ...website.features].join(' ').toLocaleLowerCase()
   const category = categoryName.toLocaleLowerCase()
 
   if (name === query)

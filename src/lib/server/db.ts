@@ -12,6 +12,6 @@ export const db = globalForDb.navPool ?? new Pool({
 if (process.env.NODE_ENV !== 'production')
   globalForDb.navPool = db
 
-export async function query<T = Record<string, unknown>>(text: string, values: unknown[] = []) {
+export async function query<T extends import('pg').QueryResultRow = Record<string, unknown>>(text: string, values: unknown[] = []) {
   return db.query<T>(text, values)
 }

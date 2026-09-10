@@ -1,42 +1,51 @@
-/** @description: 网站分类 */
 export type Category = Columns & {
-  name: string // 分类名称
-  websites: Website[] // 网站列表
+  name: string
+  sort: number
+  websites: Website[]
 }
 
-/** @description: 公共列 */
 export interface Columns {
-  id: string // 主键
-  user_id: string // 登录用户 id
-  emial: string // 邮箱
-  sort: number // 排序
-  created_at: string // 创建时间
-  updated_at: string // 更新时间
+  id: string
+  created_at: string
+  updated_at: string
 }
 
-/** @description: 响应体 */
+export interface GitHubSnapshot {
+  full_name: string
+  html_url: string
+  description: string | null
+  homepage: string | null
+  stargazers_count: number
+  forks_count: number
+  open_issues_count: number
+  language: string | null
+  license_spdx_id: string | null
+  default_branch: string
+  archived: boolean
+  pushed_at: string | null
+}
+
 export interface IResponse<T = unknown> {
-  code: number // 状态码
-  data: T // 数据
-  msg: string // 消息
-  timestamp: number // 时间戳
+  code: number
+  data: T
+  msg: string
+  timestamp: number
 }
 
-/** @description: 网站列表 */
 export type Website = Columns & {
-  name: string // 分类名称
-  desc: string | null // 描述
-  logo: string | null // logo
-  url: string // 链接
-  tags: string[] // 站点标签
-  metadata: Record<string, unknown> // n8n 分类、内容分析与来源元数据
-  pinned: boolean // 是否置顶
-  recommend: boolean // 是否推荐
-  vpn: boolean // 是否需要 vpn
-  visitCount: number // 访问次数
-  commonlyUsed: boolean // 是否常用
-  archived_at: string | null // 归档时间，非空表示已下线
-  category_id: string // 分类 id
-  category?: Category
+  name: string
+  official_url: string | null
+  github_url: string | null
+  related_links: Record<string, string>
+  self_description: string
+  description: string
+  features: string[]
+  category_id: string
+  tags: string[]
+  ai_review: string | null
+  ai_reviewed_at: string | null
+  archived_at: string | null
+  github_snapshot: GitHubSnapshot | null
+  github_fetched_at: string | null
   category_name?: string
 }
