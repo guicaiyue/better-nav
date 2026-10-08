@@ -247,7 +247,7 @@ export default function AdminSites() {
                         {(Object.keys(modeLabels) as Exclude<Mode, 'create'>[]).map(value => (
                           <button
                             key={value} aria-pressed={mode === value} type="button" disabled={!!busy} onClick={() => {
-                              if (mode !== value && mayNavigate())
+                              if (mode !== value)
                                 setMode(value)
                             }}
                             className={`rounded-lg px-3 py-2 text-sm disabled:opacity-50 ${mode === value ? 'bg-accent/10 font-medium text-accent' : 'text-muted hover:bg-default-100'}`}
