@@ -1,12 +1,13 @@
-import { analyzeWebsite } from '@/lib/server/agentMaster'
+import { analyzeWebsite, evaluateWebsite } from '@/lib/server/agentMaster'
 import { apiError, apiSuccess } from '@/lib/server/apiResponse'
+import { putEvaluation } from '@/lib/server/evaluation'
 import { getCategories, getWebsite, patchWebsite } from '@/lib/server/websites'
 import { requireObject, TAG_OPTIONS, WebsiteError } from '@/lib/website-contract'
 
 export const runtime = 'nodejs'
 export const maxDuration = 660
 
-type Context = { params: Promise<{ id: string }> }
+interface Context { params: Promise<{ id: string }> }
 
 export async function POST(request: Request, { params }: Context) {
   try {
@@ -15,6 +16,10 @@ export async function POST(request: Request, { params }: Context) {
       throw new WebsiteError('仅接受 task: describe 或 evaluate')
     const { id } = await params
     const website = await getWebsite(id)
+    if (body.task === 'evaluate') {
+      await putEvaluation(id, await evaluateWebsite(website))
+      return apiSuccess(await getWebsite(id))
+    }
     const categories = await getCategories()
     const result = await analyzeWebsite({
       task: body.task as 'describe' | 'evaluate',

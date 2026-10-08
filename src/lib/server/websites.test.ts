@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { normalizeUrl, validateChanges } from '../website-contract'
-import { query } from './db'
+import { evaluateWebsite } from './agentMaster'
+import { db as pool, query } from './db'
 import { refreshGitHubSnapshot } from './githubSnapshot'
 import { buildWebsitePatch, createWebsite, getWebsite, listCategoryWebsites, patchWebsite } from './websites'
 
-vi.mock('./db', () => ({ query: vi.fn() }))
+vi.mock('./db', () => ({ query: vi.fn(), db: { connect: vi.fn() } }))
+vi.mock('./agentMaster', () => ({ evaluateWebsite: vi.fn() }))
 const db = vi.mocked(query)
 const id = '11111111-1111-4111-8111-111111111111'
 const categoryId = '22222222-2222-4222-8222-222222222222'
@@ -30,14 +32,9 @@ describe('minimal website contract and scoped updates', () => {
     expect(validateChanges('content', { features: [], tags: ['提供API', '提供API'] })).toEqual({ features: [], tags: ['提供API'] })
   })
 
-  it('updates only submitted columns and generates review time on server', async () => {
-    db.mockResolvedValue(rows([site]))
-    await patchWebsite(id, 'review', { ai_review: '评价' })
-    const [sql, values] = db.mock.calls[0]
-    expect(sql).toContain('"ai_review" = $1, ai_reviewed_at = NOW()')
-    expect(sql).not.toMatch(/self_description|description =|github_snapshot|archived_at/)
-    expect(values).toEqual(['评价', id])
-    expect(buildWebsitePatch(id, validateChanges('review', { ai_review: null }))?.text).toContain('ai_reviewed_at = NULL')
+  it('rejects the old review PATCH without touching the database', async () => {
+    await expect(patchWebsite(id, 'review', { ai_review: '评价' })).rejects.toThrow('evaluation')
+    expect(db).not.toHaveBeenCalled()
   })
 
   it('atomically merges link keys; null removes, empty object is no-op', async () => {
@@ -58,12 +55,14 @@ describe('minimal website contract and scoped updates', () => {
     expect(patch.values).toEqual([null, id])
   })
 
-  it('validates controlled category, creates only intake with default category', async () => {
+  it('validates URLs/category and cannot create a website after Agent failure', async () => {
     await expect(createWebsite({ name: 'missing URLs' })).rejects.toThrow()
     expect(db).not.toHaveBeenCalled()
-    db.mockResolvedValueOnce(rows([{ id: categoryId, name: '其它' }])).mockResolvedValueOnce(rows([site]))
-    await createWebsite({ name: 'tool', github_url: site.github_url })
-    expect(db.mock.calls[1][1]).toEqual(['tool', null, site.github_url, '{}', '', categoryId])
+    db.mockResolvedValueOnce(rows([{ id: categoryId, name: '其它' }]))
+    vi.mocked(evaluateWebsite).mockRejectedValueOnce(new Error('Agent failed'))
+    await expect(createWebsite({ name: 'tool', github_url: site.github_url })).rejects.toThrow('Agent failed')
+    expect(pool.connect).not.toHaveBeenCalled()
+    expect(db).toHaveBeenCalledTimes(1)
     db.mockResolvedValueOnce(rows([{ id: categoryId, name: '其它' }]))
     await expect(patchWebsite(id, 'content', { category_id: id })).rejects.toThrow('受控词表')
   })

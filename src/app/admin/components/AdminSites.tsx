@@ -93,17 +93,24 @@ export default function AdminSites() {
     setMessage('')
     try {
       const creating = mode === 'create'
-      const site = await navRequest<Website>(creating ? '/api/websites' : `/api/websites/${selected!.id}`, {
-        method: creating ? 'POST' : 'PATCH',
-        body: JSON.stringify(creating ? changes : { group: mode, changes }),
-      })
+      let site: Website
+      if (mode === 'review') {
+        await navRequest(`/api/websites/${selected!.id}/evaluation`, { method: 'PUT', body: JSON.stringify(changes) })
+        site = await navRequest<Website>(`/api/websites/${selected!.id}`)
+      }
+      else {
+        site = await navRequest<Website>(creating ? '/api/websites' : `/api/websites/${selected!.id}`, {
+          method: creating ? 'POST' : 'PATCH',
+          body: JSON.stringify(creating ? changes : { group: mode, changes }),
+        })
+      }
       upsert(site)
       if (creating) {
         setFilter('active')
         setKeyword('')
       }
       setMode('detail')
-      setMessage(creating ? '站点已创建，可继续生成描述、评价或采集 GitHub。' : '当前分组已保存。')
+      setMessage(creating ? '站点与评价、关键词已一起保存。' : '当前分组已保存。')
     }
     finally {
       setBusy('')
@@ -113,7 +120,7 @@ export default function AdminSites() {
     if (!selected || busy)
       return
     const label = kind === 'describe' ? 'AI 描述' : kind === 'evaluate' ? 'AI 评价' : kind === 'github' ? 'GitHub 快照采集' : selected.archived_at ? '恢复收录' : '归档'
-    if ((kind === 'describe' || kind === 'evaluate') && !window.confirm(`${label}将替换${kind === 'describe' ? '描述、功能、分类与标签' : '评价'}分组，其他字段保持不变。继续吗？`))
+    if ((kind === 'describe' || kind === 'evaluate') && !window.confirm(`${label}将替换${kind === 'describe' ? '描述、功能、分类与标签' : '评价与完整关键词'}分组，其他字段保持不变。继续吗？`))
       return
     if (kind === 'archive' && !window.confirm(`确认${label}“${selected.name}”？${selected.archived_at ? '恢复后将重新显示在首页。' : '归档后首页不再展示，仍可随时恢复。'}`))
       return

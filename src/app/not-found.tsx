@@ -1,3 +1,5 @@
+'use client'
+
 /*
  * @Author: 白雾茫茫丶<baiwumm.com>
  * @Date: 2025-11-20 14:00:11

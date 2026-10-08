@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 
+import { validateEvaluation } from '@/lib/keyword-contract'
+
 import {
   buttonClass,
   contentChanges,
@@ -30,6 +32,7 @@ export default function SiteForm({ site, group, taxonomy, busy, onSave, onCancel
   const [categoryId, setCategoryId] = useState(site?.category_id || '')
   const [tags, setTags] = useState(site?.tags || [])
   const [review, setReview] = useState(site?.ai_review || '')
+  const [keywords, setKeywords] = useState(site?.search_keywords?.map(item => item.keyword).join('\n') || '')
   const [error, setError] = useState('')
   const submit = async () => {
     setError('')
@@ -46,7 +49,7 @@ export default function SiteForm({ site, group, taxonomy, busy, onSave, onCancel
         changes = contentChanges(site, { description, features: features.split('\n').map(item => item.trim()).filter(Boolean), category_id: categoryId, tags })
       }
       else {
-        changes = review === (site?.ai_review || '') ? {} : { ai_review: review.trim() ? review : null }
+        changes = { ...validateEvaluation({ ai_review: review, search_keywords: keywords.split('\n') }, site?.name) }
       }
       if (site && !Object.keys(changes).length) {
         setError('没有需要保存的修改')
@@ -89,13 +92,18 @@ export default function SiteForm({ site, group, taxonomy, busy, onSave, onCancel
             </fieldset>
           </>
         )}
-        {group === 'review' && <Field hint="可人工修订，留空保存会清除评价。评价时间由服务端维护。" label="AI 评价"><textarea placeholder="暂无评价，可手动补充或先运行 AI 评价" rows={12} value={review} onChange={event => setReview(event.target.value)} className={inputClass} /></Field>}
+        {group === 'review' && (
+          <>
+            <Field hint="评价与完整关键词一起保存；失败时均不更新。" label="AI 评价"><textarea required rows={12} value={review} onChange={event => setReview(event.target.value)} className={inputClass} /></Field>
+            <Field hint="每行一个，5–10 个；必须含当前站名，归一化后不能重复。" label="搜索关键词"><textarea required rows={10} value={keywords} onChange={event => setKeywords(event.target.value)} className={inputClass} /></Field>
+          </>
+        )}
       </fieldset>
       {error && <p role="alert" className="rounded-xl border border-danger/30 bg-danger/10 p-3 text-sm text-danger">{error}</p>}
       <div className="sticky bottom-0 flex flex-wrap gap-2 border-t border-default-200 bg-background py-4">
         <button type="submit" disabled={busy} className={primaryClass}>{busy ? '正在保存…' : site ? '保存当前分组' : '创建站点'}</button>
         <button type="button" disabled={busy} onClick={onCancel} className={buttonClass}>取消</button>
-        <p className="basis-full text-xs text-muted">{site ? '仅提交本次修改的字段，不覆盖其他分组。' : '仅提交基础信息，默认归入“其它”，描述与评价可创建后生成。'}</p>
+        <p className="basis-full text-xs text-muted">{site ? '仅提交本次修改的字段，不覆盖其他分组。' : '先由固定 Agent 生成评价和关键词，全部成功后一次创建；失败不入库。'}</p>
       </div>
     </form>
   )

@@ -11,8 +11,8 @@ services:
       - "${NAV_HTTP_PORT:-39125}:3000"
     environment:
       NODE_ENV: production
-      AGENT_MASTER_BASE_URL: http://172.17.0.1:18082
-      NAV_FIXED_AGENT_ID: 81a4d6ad-e075-41cc-8a08-6a2f9ef2225d
+      AGENT_MASTER_BASE_URL: http://172.17.0.1:18080
+      NAV_FIXED_AGENT_ID: ac0d4a46-8cc3-4a43-805b-86057fa2a78d
       HOSTNAME: 0.0.0.0
       PORT: "3000"
       NAV_DATABASE_HOST: /var/run/postgresql

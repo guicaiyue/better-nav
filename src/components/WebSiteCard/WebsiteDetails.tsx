@@ -3,11 +3,11 @@ import { displayDate, safeWebUrl } from './websiteView'
 import type { Website } from '@/types'
 import type { ReactNode } from 'react'
 
-export function ExternalLink({ href, children }: { href?: string | null, children: ReactNode }) {
+export function ExternalLink({ href, children, onClick }: { href?: string | null, children: ReactNode, onClick?: () => void }) {
   const safe = safeWebUrl(href)
   return safe
     ? (
-        <a href={safe} rel="noopener noreferrer" target="_blank" className="break-all text-accent underline-offset-4 hover:underline">
+        <a href={safe} rel="noopener noreferrer" target="_blank" onClick={onClick} className="break-all text-accent underline-offset-4 hover:underline">
           {children}
           {' '}
           ↗

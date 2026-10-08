@@ -48,4 +48,5 @@ export type Website = Columns & {
   github_snapshot: GitHubSnapshot | null
   github_fetched_at: string | null
   category_name?: string
+  search_keywords?: import('../lib/keyword-contract').SearchKeyword[]
 }

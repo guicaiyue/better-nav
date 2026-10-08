@@ -1,11 +1,23 @@
-import { CATEGORY_NAMES, requireId, validateChanges, WebsiteError } from '../website-contract'
+import { validateEvaluation } from '../keyword-contract'
+import {
+  CATEGORY_NAMES,
+  requireId,
+  requireObject,
+  validateChanges,
+  WEBSITE_GROUPS,
+  WebsiteError,
+} from '../website-contract'
+import { evaluateWebsite } from './agentMaster'
 import { query } from './db'
+import { replaceKeywords, transaction } from './evaluation'
 import { sortWebsites } from './sort'
 
 import type { Category, Website } from '../../types'
 
 /** Parameterized, group-scoped SQL. No read/merge/write of an entire website. */
 export function buildWebsitePatch(id: string, changes: Record<string, unknown>) {
+  if ('ai_review' in changes || 'ai_reviewed_at' in changes)
+    throw new WebsiteError('评价必须使用 evaluation 原子接口')
   const sets: string[] = []
   const values: unknown[] = []
   const bind = (value: unknown) => {
@@ -30,8 +42,6 @@ export function buildWebsitePatch(id: string, changes: Record<string, unknown>) 
     }
     else {
       sets.push(`"${field}" = ${bind(value)}`)
-      if (field === 'ai_review')
-        sets.push(`ai_reviewed_at = ${value === null ? 'NULL' : 'NOW()'}`)
     }
   }
   if (!sets.length)
@@ -40,18 +50,44 @@ export function buildWebsitePatch(id: string, changes: Record<string, unknown>) 
 }
 
 export async function createWebsite(input: unknown): Promise<Website> {
-  const changes = validateChanges('intake', input)
-  if (!changes.name || (!changes.official_url && !changes.github_url))
+  const body = requireObject(input)
+  const allowed: readonly string[] = [...WEBSITE_GROUPS.intake, ...WEBSITE_GROUPS.content, 'evaluation']
+  if (Object.keys(body).some(key => !allowed.includes(key)))
+    throw new WebsiteError('创建站点含未允许的字段')
+  const pick = (fields: readonly string[]) => Object.fromEntries(Object.entries(body).filter(([key]) => fields.includes(key)))
+  const intake = validateChanges('intake', pick(WEBSITE_GROUPS.intake))
+  const content = validateChanges('content', pick(WEBSITE_GROUPS.content))
+  if (!intake.name || (!intake.official_url && !intake.github_url))
     throw new WebsiteError('名称必填，官方网站和 GitHub 至少填写一个')
   const categories = await getCategories()
-  const category = categories.find(item => item.name === '其它')
+  const category = content.category_id
+    ? categories.find(item => item.id === content.category_id)
+    : categories.find(item => item.name === '其它')
   if (!category)
-    throw new WebsiteError('缺少默认分类，请先执行迁移', 503)
-  const links = Object.fromEntries(Object.entries((changes.related_links ?? {}) as Record<string, string | null>).filter(([, value]) => value !== null))
-  const { rows } = await query<Website>(`INSERT INTO ds_websites
-    (name, official_url, github_url, related_links, self_description, category_id)
-    VALUES ($1,$2,$3,$4::jsonb,$5,$6) RETURNING *`, [changes.name, changes.official_url ?? null, changes.github_url ?? null, JSON.stringify(links), changes.self_description ?? '', category.id])
-  return rows[0]
+    throw new WebsiteError('分类必须来自受控词表')
+  const draft = {
+    name: intake.name as string,
+    official_url: intake.official_url ?? null,
+    github_url: intake.github_url ?? null,
+    self_description: intake.self_description ?? '',
+    description: content.description ?? '',
+    features: content.features ?? [],
+    category_id: category.id,
+    tags: content.tags ?? [],
+  }
+  // Slow external work happens before BEGIN. Failure cannot leave a partial website.
+  const evaluation = validateEvaluation(Object.hasOwn(body, 'evaluation')
+    ? body.evaluation
+    : await evaluateWebsite(draft), draft.name)
+  const links = Object.fromEntries(Object.entries((intake.related_links ?? {}) as Record<string, string | null>).filter(([, value]) => value !== null))
+  return transaction(async (client) => {
+    const { rows } = await client.query<Website>(`INSERT INTO ds_websites
+      (name, official_url, github_url, related_links, self_description, category_id,
+       description, features, tags, ai_review, ai_reviewed_at)
+      VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7,$8::text[],$9::text[],$10,clock_timestamp()) RETURNING *`, [draft.name, draft.official_url, draft.github_url, JSON.stringify(links), draft.self_description, draft.category_id, draft.description, draft.features, draft.tags, evaluation.ai_review])
+    const keywords = await replaceKeywords(client, rows[0].id, evaluation)
+    return { ...rows[0], search_keywords: keywords.map(({ id, keyword, sort_order }) => ({ id, keyword, sort_order })) }
+  })
 }
 
 export async function deleteWebsite(id: string): Promise<Website> {
@@ -70,9 +106,11 @@ export async function getCategories(): Promise<Omit<Category, 'websites'>[]> {
   return rows
 }
 
+const keywordProjection = `(SELECT COALESCE(jsonb_agg(jsonb_build_object('id', k.id, 'keyword', k.keyword, 'sort_order', k.sort_order) ORDER BY k.sort_order, k.id), '[]'::jsonb) FROM ds_website_search_keywords k WHERE k.website_id = w.id)`
+
 export async function getWebsite(id: string): Promise<Website> {
   requireId(id)
-  const { rows } = await query<Website>(`SELECT w.*, c.name AS category_name FROM ds_websites w
+  const { rows } = await query<Website>(`SELECT w.*, c.name AS category_name, ${keywordProjection} AS search_keywords FROM ds_websites w
     JOIN ds_categorys c ON c.id = w.category_id WHERE w.id = $1`, [id])
   if (!rows[0])
     throw new WebsiteError('网站不存在', 404)
@@ -81,7 +119,7 @@ export async function getWebsite(id: string): Promise<Website> {
 
 export async function listCategoryWebsites(): Promise<Category[]> {
   const { rows } = await query<Category>(`SELECT c.*,
-    COALESCE(json_agg(w.*) FILTER (WHERE w.id IS NOT NULL), '[]') AS websites
+    COALESCE(jsonb_agg(to_jsonb(w) || jsonb_build_object('search_keywords', ${keywordProjection})) FILTER (WHERE w.id IS NOT NULL), '[]'::jsonb) AS websites
     FROM ds_categorys c LEFT JOIN ds_websites w ON w.category_id = c.id AND w.archived_at IS NULL
     WHERE c.name = ANY($1::text[])
     GROUP BY c.id ORDER BY c.sort DESC, c.created_at DESC, c.id`, [CATEGORY_NAMES])
@@ -96,7 +134,7 @@ export async function listWebsites(options: { categoryId?: string | null, includ
     values.push(requireId(options.categoryId))
     conditions.push(`w.category_id = $${values.length}`)
   }
-  const { rows } = await query<Website>(`SELECT w.*, c.name AS category_name FROM ds_websites w
+  const { rows } = await query<Website>(`SELECT w.*, c.name AS category_name, ${keywordProjection} AS search_keywords FROM ds_websites w
     JOIN ds_categorys c ON c.id = w.category_id
     ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
     ORDER BY w.created_at DESC, w.id`, values)
@@ -105,6 +143,8 @@ export async function listWebsites(options: { categoryId?: string | null, includ
 
 export async function patchWebsite(id: string, group: unknown, input: unknown): Promise<Website> {
   requireId(id)
+  if (group === 'review')
+    throw new WebsiteError('评价与关键词必须通过 PUT /api/websites/:id/evaluation 一起更新')
   const changes = validateChanges(group, input)
   if ('category_id' in changes) {
     const categories = await getCategories()

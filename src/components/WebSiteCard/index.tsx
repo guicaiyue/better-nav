@@ -9,9 +9,9 @@ import { githubRepository, safeWebUrl } from './websiteView'
 
 import type { Website } from '@/types'
 
-interface WebsiteCardProps { data: Website, priority?: boolean }
+interface WebsiteCardProps { data: Website, priority?: boolean, onOpen?: () => void }
 
-const WebsiteCard = memo(({ data, priority = false }: WebsiteCardProps) => {
+const WebsiteCard = memo(({ data, priority = false, onOpen }: WebsiteCardProps) => {
   const [tab, setTab] = useState<'detail' | 'github'>('detail')
   const [open, setOpen] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -40,6 +40,7 @@ const WebsiteCard = memo(({ data, priority = false }: WebsiteCardProps) => {
           aria-label={`查看 ${data.name} 详情`} type="button" onClick={() => {
             setTab('detail')
             setOpen(true)
+            onOpen?.()
           }} className="flex flex-1 flex-col text-left outline-offset-4"
         >
           <div className="flex w-full items-center gap-3">
@@ -64,8 +65,8 @@ const WebsiteCard = memo(({ data, priority = false }: WebsiteCardProps) => {
           <div className="mt-4 flex flex-wrap gap-1.5">{data.tags.slice(0, 4).map(tag => <span key={tag} className="rounded-md bg-default-100 px-2 py-1 text-xs text-default-600">{tag}</span>)}</div>
         </button>
         <div className="mt-4 flex flex-wrap gap-4 border-t border-default-100 pt-3 text-xs">
-          <ExternalLink href={data.official_url}>官网</ExternalLink>
-          <ExternalLink href={data.github_url}>GitHub</ExternalLink>
+          <ExternalLink href={data.official_url} onClick={onOpen}>官网</ExternalLink>
+          <ExternalLink href={data.github_url} onClick={onOpen}>GitHub</ExternalLink>
         </div>
       </article>
       {open && (

@@ -1,12 +1,70 @@
-import { WebsiteError } from '@/lib/website-contract'
+import { validateEvaluation } from '../keyword-contract'
+import { WebsiteError } from '../website-contract'
+import { getWebsiteUpdateRules } from './evaluation'
 
-export type AnalysisTask = 'describe' | 'evaluate'
-type Category = { id: string, name: string }
 export interface AnalysisInput {
   task: AnalysisTask
   website: object
   allowed_categories: Category[]
   allowed_tags: readonly string[]
+}
+export type AnalysisTask = 'describe' | 'evaluate'
+interface Category { id: string, name: string }
+
+export async function analyzeWebsite(input: AnalysisInput) {
+  if (input.task === 'evaluate')
+    return { group: 'evaluation' as const, changes: await evaluateWebsite(input.website) }
+  const site = object(input.website)
+  const product = {
+    id: String(site.id ?? ''), name: site.name,
+    official_url: site.official_url || null, github_url: site.github_url || null,
+    related_links: site.related_links || {}, self_description: site.self_description || '',
+  }
+  const article = {
+    title: site.name, url: site.official_url || site.github_url,
+    text: [site.self_description, site.description, ...(Array.isArray(site.features) ? site.features : [])]
+      .filter(value => typeof value === 'string' && value.trim()).join('\n') || String(site.name),
+  }
+  const payload = { product, article, categories: input.allowed_categories.map(category => category.name), allowed_tags: input.allowed_tags }
+  return parseAnalysisOutput(await runFixedAgent(process.env.NAV_FIXED_AGENT_ID ?? '', payload), input)
+}
+
+export async function evaluateWebsite(source: object) {
+  const site = source as Record<string, unknown>
+  const website = Object.fromEntries(['name', 'official_url', 'github_url', 'self_description', 'description', 'features', 'category_id', 'tags']
+    .map(key => [key, site[key] ?? (['features', 'tags'].includes(key) ? [] : ['official_url', 'github_url'].includes(key) ? null : '')]))
+  if (site.id !== undefined)
+    website.id = site.id
+  const rule = (await getWebsiteUpdateRules()).find(item => item.category === 'evaluate')
+  if (!rule)
+    throw new WebsiteError('缺少 Evaluate 更新规则', 503)
+  const output = await runFixedAgent(rule.agent_id, { website })
+  try {
+    return validateEvaluation(output, String(website.name))
+  }
+  catch (error) { throw new WebsiteError(`Agent 评价契约无效：${error instanceof Error ? error.message : '未知错误'}`, 502) }
+}
+
+export function parseAnalysisOutput(value: unknown, input: AnalysisInput) {
+  const output = object(value)
+  const fields = ['description', 'features', 'category_name', 'tags']
+  if (Object.keys(output).length !== fields.length || fields.some(field => !Object.hasOwn(output, field)))
+    throw new WebsiteError('Agent 描述字段不符合契约', 502)
+  const category = input.allowed_categories.find(category => category.name === output.category_name)
+  if (typeof output.description !== 'string' || !output.description.trim()
+    || (output.category_name !== '' && !category))
+    throw new WebsiteError('Agent 描述或分类无效', 502)
+  for (const field of ['features', 'tags']) {
+    const items = output[field]
+    if (!Array.isArray(items) || items.some(item => typeof item !== 'string' || !item.trim()) || new Set(items).size !== items.length)
+      throw new WebsiteError(`Agent ${field} 必须是不重复的字符串数组`, 502)
+    if (field === 'tags' && items.some(item => !input.allowed_tags.includes(item)))
+      throw new WebsiteError('Agent 返回了词表外标签', 502)
+  }
+  return { group: 'content' as const, changes: {
+    description: output.description, features: output.features,
+    category_id: category?.id ?? '', tags: output.tags,
+  } }
 }
 
 function object(value: unknown): Record<string, unknown> {
@@ -15,42 +73,13 @@ function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-export function parseAnalysisOutput(value: unknown, input: AnalysisInput) {
-  const output = object(value)
-  const key = input.task === 'describe' ? 'description_group' : 'evaluation_group'
-  if (Object.keys(output).length !== 1 || !Object.hasOwn(output, key))
-    throw new WebsiteError('Agent 必须只返回请求的职责组', 502)
-  const changes = object(output[key])
-  const fields = input.task === 'describe' ? ['description', 'features', 'category_id', 'tags'] : ['ai_review']
-  if (Object.keys(changes).length !== fields.length || fields.some(field => !Object.hasOwn(changes, field)))
-    throw new WebsiteError('Agent 职责组字段不符合契约', 502)
-  if (input.task === 'evaluate') {
-    if (typeof changes.ai_review !== 'string' || !changes.ai_review.trim())
-      throw new WebsiteError('Agent 评价必须是非空字符串', 502)
-  }
-  else {
-    if (typeof changes.description !== 'string' || !changes.description.trim()
-      || !input.allowed_categories.some(category => category.id === changes.category_id))
-      throw new WebsiteError('Agent 描述或分类无效', 502)
-    for (const field of ['features', 'tags']) {
-      const items = changes[field]
-      if (!Array.isArray(items) || items.some(item => typeof item !== 'string' || !item.trim()))
-        throw new WebsiteError(`Agent ${field} 必须是字符串数组`, 502)
-      if (field === 'tags' && items.some(item => !input.allowed_tags.includes(item)))
-        throw new WebsiteError('Agent 返回了词表外标签', 502)
-    }
-  }
-  return { group: input.task === 'describe' ? 'content' as const : 'review' as const, changes }
-}
-
-export async function analyzeWebsite(input: AnalysisInput) {
+async function runFixedAgent(id: string, input: unknown) {
   const base = process.env.AGENT_MASTER_BASE_URL?.replace(/\/$/, '')
-  const id = process.env.NAV_FIXED_AGENT_ID
   if (!base || !id)
-    throw new WebsiteError('未配置生产固定 Agent', 503)
+    throw new WebsiteError('未配置固定 Agent 接入', 503)
   let response: Response
   try {
-    // One synchronous request only: a timeout must never trigger an automatic duplicate run.
+    // Never automatically retry a timed-out run.
     response = await fetch(`${base}/api/v1/fixed-agents/${encodeURIComponent(id)}/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -61,15 +90,26 @@ export async function analyzeWebsite(input: AnalysisInput) {
   }
   catch (error) {
     const timeout = error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name)
-    throw new WebsiteError(timeout ? 'Agent 请求超时；后台可能仍在运行，请勿立即重复提交' : '无法连接生产 Agent Master', timeout ? 504 : 502)
+    throw new WebsiteError(timeout ? 'Agent 请求超时；后台可能仍在运行，请勿立即重复提交' : '无法连接 Agent Master', timeout ? 504 : 502)
   }
-  if (!response.ok)
-    throw new WebsiteError(`Agent Master 请求失败 (${response.status})`, 502)
   let result: Record<string, unknown>
-  try { result = object(await response.json()) }
-  catch { throw new WebsiteError('Agent Master 返回的 JSON 无效', 502) }
+  try {
+    result = object(await response.json())
+  }
+  catch { throw new WebsiteError(`Agent Master 返回的 JSON 无效 (HTTP ${response.status})`, 502) }
+  const detail = (value: unknown) => typeof value === 'string' ? value.replace(/[\r\n]+/g, ' ').slice(0, 400) : ''
+  if (!response.ok) {
+    const reason = typeof result.detail === 'string' ? detail(result.detail)
+      : Array.isArray(result.detail) ? result.detail.map(item => {
+          const error = object(item)
+          return `${Array.isArray(error.loc) ? error.loc.join('.') : ''}: ${detail(error.msg)}`
+        }).join('; ').slice(0, 400) : detail(result.message)
+    throw new WebsiteError(`Agent Master HTTP ${response.status}${reason ? `：${reason}` : ''}`, 502)
+  }
   const run = object(result.run)
-  if (run.status !== 'SUCCEEDED')
-    throw new WebsiteError('Agent 运行未成功，未更新网站', 502)
-  return parseAnalysisOutput(result.output, input)
+  if (run.status !== 'SUCCEEDED') {
+    const evidence = `run_id=${detail(run.run_id)}, version=${detail(run.prompt_version_id) || String(run.prompt_version ?? '')}`
+    throw new WebsiteError(`Agent ${detail(run.status)}，未更新网站；${detail(run.error_message)} (${evidence})`, 502)
+  }
+  return result.output
 }

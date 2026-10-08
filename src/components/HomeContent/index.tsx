@@ -14,12 +14,14 @@ import BlurFade from '@/components/BlurFade'
 import CategoryIndicator from '@/components/CategoryIndicator'
 import { useWebsiteSearch } from '@/components/HeaderSearch/search-context'
 import WebsiteCard from '@/components/WebSiteCard'
+import { normalizeKeyword, searchByKeywords } from '@/lib/keyword-contract'
+import { recordSearchClick } from '@/lib/search-click'
 
+import type { SearchKeyword } from '@/lib/keyword-contract'
 import type { Category, Website } from '@/types'
 import type { Variants } from 'motion/react'
 
 const FIRST_SCREEN_CARD_COUNT = 4
-const MAX_RESULTS = 10
 
 const cardVariants: Variants = {
   hidden: { y: 20, opacity: 0 },
@@ -40,22 +42,14 @@ interface HomeContentProps {
 export default function HomeContent({ data }: HomeContentProps) {
   const { query, setQuery, isOpen, closeSearch } = useWebsiteSearch()
   const inputRef = useRef<HTMLInputElement>(null)
-  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const normalizedQuery = normalizeKeyword(query)
   const categories = data.filter(category => category.websites.some(website => !website.archived_at))
     .map(category => ({ ...category, websites: category.websites.filter(website => !website.archived_at) }))
-  const results = useMemo(() => {
+  const results = useMemo<Array<{ website: Website, keyword?: SearchKeyword }>>(() => {
     if (!normalizedQuery)
       return []
 
-    return categories
-      .flatMap(category => category.websites.map((website) => {
-        const score = scoreWebsite(website, category.name, normalizedQuery)
-        return { website, score }
-      }))
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score || a.website.name.localeCompare(b.website.name, 'zh-CN'))
-      .slice(0, MAX_RESULTS)
-      .map(item => item.website)
+    return searchByKeywords(categories.flatMap(category => category.websites), normalizedQuery)
   }, [categories, normalizedQuery])
 
   useEffect(() => {
@@ -157,8 +151,8 @@ export default function HomeContent({ data }: HomeContentProps) {
                           ? (
                               <motion.div animate="visible" initial="hidden" variants={cardGridVariants} className="grid gap-4 grid-cols-[repeat(auto-fill,minmax(17rem,1fr))]">
                                 {results.map(item => (
-                                  <motion.div key={item.id} transition={cardTransition} variants={cardVariants} className="h-full">
-                                    <WebsiteCard data={item} />
+                                  <motion.div key={item.website.id} transition={cardTransition} variants={cardVariants} className="h-full">
+                                    <WebsiteCard data={item.website} onOpen={item.keyword ? () => recordSearchClick(item.website.id, item.keyword!.id) : undefined} />
                                   </motion.div>
                                 ))}
                               </motion.div>
@@ -166,7 +160,7 @@ export default function HomeContent({ data }: HomeContentProps) {
                           : <AlertContent title="没有匹配的网站" description="换个关键词试试。" status="accent" />}
                       </>
                     )
-                  : <div className="py-16 text-center text-sm text-default-500">输入关键词，搜索网站、网址或标签</div>}
+                  : <div className="py-16 text-center text-sm text-default-500">输入关键词搜索网站</div>}
               </div>
             </motion.section>
           </motion.div>
@@ -174,28 +168,4 @@ export default function HomeContent({ data }: HomeContentProps) {
       </AnimatePresence>
     </div>
   )
-}
-
-function scoreWebsite(website: Website, categoryName: string, query: string) {
-  const name = website.name.toLocaleLowerCase()
-  const url = [website.official_url, website.github_url, ...Object.values(website.related_links || {})].filter(Boolean).join(' ').toLocaleLowerCase()
-  const tags = website.tags.join(' ').toLocaleLowerCase()
-  const description = [website.description, website.self_description, ...website.features].join(' ').toLocaleLowerCase()
-  const category = categoryName.toLocaleLowerCase()
-
-  if (name === query)
-    return 1000
-  if (name.startsWith(query))
-    return 800
-  if (name.includes(query))
-    return 700
-  if (url.includes(query))
-    return 500
-  if (tags.includes(query))
-    return 400
-  if (description.includes(query))
-    return 300
-  if (category.includes(query))
-    return 200
-  return 0
 }
